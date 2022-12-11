@@ -8,7 +8,6 @@ Created on Tue Nov 22 17:59:21 2022
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import pickle as pkl
 import sklearn as sk

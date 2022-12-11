@@ -3,3 +3,4 @@ streamlit
 plotly
 sklearn
 matplotlib
+plotly
