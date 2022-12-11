@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pickle as pkl
 # import sklearn as sk
-from sklearn.neighbors import KNeighborsClassifier
+# from sklearn.neighbors import KNeighborsClassifier
 
 with open("stats_df.pkl" , "rb") as file_1:
     stats = pkl.load(file_1)
