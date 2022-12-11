@@ -2,7 +2,3 @@ pandas
 streamlit
 plotly
 sklearn
-matplotlib
-numpy
-pickle
-sklearn
