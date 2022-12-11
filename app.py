@@ -5,12 +5,12 @@ Created on Tue Nov 22 17:59:21 2022
 @author: tonyd
 """
 ### imports ###
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle as pkl
-import sklearn as sk
+# import sklearn as sk
 from sklearn.neighbors import KNeighborsClassifier
 
 with open("stats_df.pkl" , "rb") as file_1:
