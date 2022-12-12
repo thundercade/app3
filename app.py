@@ -13,11 +13,40 @@ import pickle as pkl
 import sklearn as sk
 from sklearn.neighbors import KNeighborsClassifier
 
+
+
+from tqdm import tqdm
+
+import spacy
+from spacy.lang.en.stop_words import STOP_WORDS
+from spacy import displacy
+from string import punctuation
+from collections import Counter
+from heapq import nlargest
+from PIL import Image
+import torch
+import os
+
+import sentence_transformers
+from sentence_transformers import SentenceTransformer, util
+
 with open("stats_df.pkl" , "rb") as file_1:
     stats = pkl.load(file_1)
 
+with open("comic_df.pkl" , "rb") as file_2:
+    df = pkl.load(file_2)
 
+with open("comic_corpus_embeddings.pkl" , "rb") as file_3:
+    corpus_embeddings = pkl.load(file_3)
 
+with open("comic_corpus.pkl" , "rb") as file_4:
+    corpus = pkl.load(file_4)
+
+embedder = SentenceTransformer('all-MiniLM-L6-v2')
+# @st.cache(allow_output_mutation=True)
+# def load_model():
+#     return SentenceTransformer('all-MiniLM-L6-v2')
+# embedder = load_model()
 
 ### page title ###
 st.title('Welcome to Deadpools Hero Matcher!')
@@ -125,6 +154,42 @@ def stat_display(stuff):
 stat_display(match_stats)
 #hero_match =
 
+
+
+
+query = ''
+query = st.text_input("Enter what comic action you want to read about:")
+# queries = list([queries])
+
+# Find the closest 5 sentences of the corpus for query sentence based on cosine similarity
+if query == '':
+    st.markdown("""What other action are you looking for?
+    Type something like Spiderman fights The Green Goblin and loses! or
+    Wolverine teams up with Black Widow!""")
+else:
+    top_k = min(5, len(corpus))
+    query_embedding = embedder.encode(query, convert_to_tensor=True)
+
+    # We use cosine-similarity and torch.topk to find the highest 5 scores
+    cos_scores = util.pytorch_cos_sim(query_embedding, corpus_embeddings)[0]
+    top_results = torch.topk(cos_scores, k=top_k)
+
+    st.markdown("""---""")
+    st.write("You searched for:   ", query, "\n")
+    st.subheader("""**You can read about it in these exciting titles:**""")
+
+    for score, idx in zip(top_results[0], top_results[1]):
+        # st.write("(Score: {:.4f})".format(score))
+        # st.write(corpus[idx], "(Score: {:.4f})".format(score))
+        st.markdown("""---""")
+        comic=df['comic_name'][df['all_review']==corpus[idx]]
+        row_dict = df.loc[df['all_review']== corpus[idx]]
+        # row2_dict = sum_df.loc[sum_df['all_review']== corpus[idx]]
+        # row3_dict = df1.loc[df1['comic_name']==row_dict['comic_name'].values[0]]
+        st.write("Comic Title: " , row_dict['comic_name'].values[0])
+        #st.write("Hotel Review Summary: " , row2_dict['summary'].values[0])
+        #st.write("Tripadvisor Link: [here](%s)" %row3_dict['url'].values[0], "\n")
+        st.markdown("""---""")
 
 ### IDEA ###
 # (first character that comes up is a profile of superman, but x'd out)
