@@ -13,8 +13,6 @@ import pickle as pkl
 import sklearn as sk
 from sklearn.neighbors import KNeighborsClassifier
 
-
-
 from tqdm import tqdm
 
 import spacy
@@ -30,30 +28,43 @@ import os
 import sentence_transformers
 from sentence_transformers import SentenceTransformer, util
 
-with open("stats_df.pkl" , "rb") as file_1:
-    stats = pkl.load(file_1)
+@st.cache(allow_output_mutation=True)
+def load_file(filename):
+    with open(filename, "rb") as file_:
+      lf = pkl.load(file_)
+    return lf
+stats = load_file("stats_df.pkl")
+df = load_file("comic_df.pkl")
+corpus_embeddings = load_file("comic_corpus_embeddings.pkl")
+corpus = load_file("comic_corpus.pkl")
 
-with open("comic_df.pkl" , "rb") as file_2:
-    df = pkl.load(file_2)
 
-with open("comic_corpus_embeddings.pkl" , "rb") as file_3:
-    corpus_embeddings = pkl.load(file_3)
+# with open("stats_df.pkl" , "rb") as file_1:
+#     stats = pkl.load(file_1)
+#
+# with open("comic_df.pkl" , "rb") as file_2:
+#     df = pkl.load(file_2)
+#
+# with open("comic_corpus_embeddings.pkl" , "rb") as file_3:
+#     corpus_embeddings = pkl.load(file_3)
+#
+# with open("comic_corpus.pkl" , "rb") as file_4:
+#     corpus = pkl.load(file_4)
 
-with open("comic_corpus.pkl" , "rb") as file_4:
-    corpus = pkl.load(file_4)
-
-embedder = SentenceTransformer('all-MiniLM-L6-v2')
-# @st.cache(allow_output_mutation=True)
-# def load_model():
-#     return SentenceTransformer('all-MiniLM-L6-v2')
-# embedder = load_model()
+# embedder = SentenceTransformer('all-MiniLM-L6-v2')
+@st.cache(allow_output_mutation=True)
+def load_model():
+    return SentenceTransformer('all-MiniLM-L6-v2')
+embedder = load_model()
 
 ### page title ###
-st.title('Welcome to Deadpools Hero Matcher!')
+st.title('Welcome to The Marvel Hero Matcher')
 
 st.markdown("""
-This app will let you define a hero by picking stats and powers, then match you with
-the closest Marvel hero we can find.
+This app will let you define a hero by picking hero stats, then match you with
+the closest Marvel hero we can find. Next, it will search Marvel comics for
+the best comic titles to read about your hero. Then, change that search as you
+want!
 """)
 
 ### sidebar menu - year selection ###
@@ -68,55 +79,50 @@ the closest Marvel hero we can find.
 scale = 25
 scl = (120/scale)
 
-with st.form("my_form"):
+st.sidebar.header('Pick some stats to get matched to a Marvel Hero!')
 
-   st.title("Make Me a Super-Hero!!")
-   st.header("Select your stats below")
+h_stats = stats[stats.Alignment=='good']
+v_stats = stats[stats.Alignment=='bad']
 
-   s_int = scl*st.slider('Intelligence', min_value=1, max_value=scale)
-   s_str = scl*st.slider('Strength', min_value=1, max_value=scale)
-   s_spd = scl*st.slider('Speed', min_value=1, max_value=scale)
-   s_dur = scl*st.slider('Durability', min_value=1, max_value=scale)
-   s_pow = scl*st.slider('Power', min_value=1, max_value=scale)
-   s_com = scl*st.slider('Combat', min_value=1, max_value=scale)
-   hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
+matched_hero =''
+matched_villain = ''
 
-   #st.markdown("Stat Total:", sum(hero_stats))
+def h_match_maker(hero_stats):
+    stat_cols = h_stats.columns[2:8]
+    x = h_stats[stat_cols].values
+    y = h_stats[['Name']].values
+    hero = np.array([hero_stats])
+    hero_knn = KNeighborsClassifier(n_neighbors=3)
+    hero_knn.fit(x, y)
+    ydf = pd.DataFrame(y).rename(columns={0:"name"})
+    mvs = hero_knn.kneighbors(hero, n_neighbors=1, return_distance=False)
+    mvs = mvs.tolist()[0]
+    match_list = ydf['name'][ydf.index.isin(mvs)].values.tolist()
+    match_df = h_stats[h_stats["Name"].isin(match_list)]
+    return match_df
 
-   # Every form must have a submit button.
-   submitted = st.form_submit_button("Match Me Up!")
-   if submitted:
-       hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
-       st.write(hero_stats)
+def v_match_maker(hero_stats):
+    stat_cols = v_stats.columns[2:8]
+    x = v_stats[stat_cols].values
+    y = v_stats[['Name']].values
+    hero = np.array([hero_stats])
+    hero_knn = KNeighborsClassifier(n_neighbors=3)
+    hero_knn.fit(x, y)
+    ydf = pd.DataFrame(y).rename(columns={0:"name"})
+    mvs = hero_knn.kneighbors(hero, n_neighbors=1, return_distance=False)
+    mvs = mvs.tolist()[0]
+    match_list = ydf['name'][ydf.index.isin(mvs)].values.tolist()
+    match_df = v_stats[v_stats["Name"].isin(match_list)]
+    return match_df
 
-st.write("Outside the form")
+def stat_display(stuff, align):
+    if align == 'h':
+        bar_color = 'red'
+    if align == 'v':
+        bar_color = 'purple'
 
-
-###### match hero_stats to character from dataframe
-stat_cols = stats.columns[2:8]
-x = stats[stat_cols].values
-y = stats[['Name']].values
-hero = np.array([hero_stats])
-hero_knn = KNeighborsClassifier(n_neighbors=3)
-hero_knn.fit(x, y)
-ydf = pd.DataFrame(y).rename(columns={0:"name"})
-mvs = hero_knn.kneighbors(hero, n_neighbors=1, return_distance=False)
-mvs = mvs.tolist()[0]
-match_list = ydf['name'][ydf.index.isin(mvs)].values.tolist()
-match_df = stats[stats["Name"].isin(match_list)]
-
-
-####### Display stuff about the matched hero
-st.write(match_df)
-
-match_stats = match_df.iloc[0,2:8].values.tolist()
-#if st.button('Click Here to Keep This Party Going!'):
-match_stats = list(np.array(match_stats)/scl)
-
-### function for horizontal bar chart of stats
-def stat_display(stuff):
     plt.rcdefaults()
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(15,15))
 
     stat_names = ['Intelligence', 'Strength', 'Speed', 'Durability', 'Power', 'Combat']
     x_pos = np.arange(0,26,5)
@@ -124,14 +130,14 @@ def stat_display(stuff):
     bar_stats = stuff
     stats_bar_text_color = 'white'
 
-    ax.barh(y_pos, bar_stats, align='center', color='red')
+    ax.barh(y_pos, bar_stats, align='center', color=bar_color)
     ax.set_yticks(y_pos)
     ax.set_xticks(x_pos)
-    ax.set_yticklabels(stat_names)
+    ax.set_yticklabels(stat_names, fontsize=30)
     ax.set_xlim([0,25])
     ax.invert_yaxis()  # labels read top-to-bottom
     ax.set_xlabel('\n\nWeak  -------------------------------- Super ------------------------------ Godly\n(but still better than you!)                                                                  ')
-    ax.set_title('Your Hero Stats', color=stats_bar_text_color)
+    #ax.set_title('Your Hero Stats', color=stats_bar_text_color)
 
     ax.set_facecolor('none')
     fig.set_alpha(0.5)
@@ -149,16 +155,73 @@ def stat_display(stuff):
     ax.spines['right'].set_color('none')
 
     return st.pyplot(fig)
+   # Every form must have a submit button.
+
+s_int = scl*st.sidebar.slider('Intelligence', min_value=1, max_value=scale)
+s_str = scl*st.sidebar.slider('Strength', min_value=1, max_value=scale)
+s_spd = scl*st.sidebar.slider('Speed', min_value=1, max_value=scale)
+s_dur = scl*st.sidebar.slider('Durability', min_value=1, max_value=scale)
+s_pow = scl*st.sidebar.slider('Power', min_value=1, max_value=scale)
+s_com = scl*st.sidebar.slider('Combat', min_value=1, max_value=scale)
+hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
+stats_total = sum(hero_stats)/scl
+# st.write("Your current stat total is: ", int(stats_total),"out of 150")
+st.markdown("""Your current stat total is:""")
+st.markdown(int(stats_total) , unsafe_allow_html=True)
+st.markdown(""" out of a possible 150""")
+
+if stats_total < 50:
+    st.markdown("You may want to kick it up a notch, yeah?")
+if stats_total >= 50 and stats_total < 75:
+    st.markdown("This is fine, but still a bit weak?")
+if stats_total >= 75 and stats_total < 125:
+    st.markdown("That's more like it! ")
+if stats_total >= 125:
+    st.markdown("Fine, but we're going to have you fight Thanos when he has all that Infinity Stuff")
+
+if st.button('Find Me a Hero!'):
+  hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
+  ###### match hero_stats to character from dataframe
+  match_df=h_match_maker(hero_stats)
+  match_stats = match_df.iloc[0,2:8].values.tolist()
+  matched_hero = match_df.iloc[0,0]
+  match_stats = list(np.array(match_stats)/scl)
+  st.write(matched_hero)
+  st.write(match_df)
+  ####### Display stuff about the matched hero
+  stat_display(match_stats, 'h')
+
+if st.button('Find Me a Villain'):
+  hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
+  ###### match hero_stats to character from dataframe
+  match_df=v_match_maker(hero_stats)
+  match_stats = match_df.iloc[0,2:8].values.tolist()
+  matched_villain = match_df.iloc[0,0]
+  match_stats = list(np.array(match_stats)/scl)
+  st.write(matched_villain)
+  st.write(match_df)
+  ####### Display stuff about the matched hero
+  stat_display(match_stats, 'v')
+###### match hero_stats to character from dataframe
+
+####### Display stuff about the matched hero
 
 
-stat_display(match_stats)
-#hero_match =
+# match_stats = match_df.iloc[0,2:8].values.tolist()
+# #if st.button('Click Here to Keep This Party Going!'):
+# match_stats = list(np.array(match_stats)/scl)
 
+### function for horizontal bar chart of stats
+initial_search=''
 
+if matched_hero != '':
+    initial_search = str(matched_hero) + ' does some sweet hero stuff!'
 
+if matched_villain != '':
+    initial_search = str(matched_villain) + ' is turning the evil up to 11!'
 
 query = ''
-query = st.text_input("Enter what comic action you want to read about:")
+query = st.text_input("", value=initial_search)
 # queries = list([queries])
 
 # Find the closest 5 sentences of the corpus for query sentence based on cosine similarity
