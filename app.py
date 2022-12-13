@@ -38,6 +38,9 @@ df = load_file("comic_df.pkl")
 corpus_embeddings = load_file("comic_corpus_embeddings.pkl")
 corpus = load_file("comic_corpus.pkl")
 
+marvel_banner = Image.open('mb.jpg')
+st.image(marvel_banner, use_column_width=True)
+
 
 # with open("stats_df.pkl" , "rb") as file_1:
 #     stats = pkl.load(file_1)
@@ -130,13 +133,14 @@ def stat_display(stuff, align):
     bar_stats = stuff
     stats_bar_text_color = 'white'
 
-    ax.barh(y_pos, bar_stats, align='center', color=bar_color)
+    ax.barh(y_pos, bar_stats, align='center', color=bar_color, height=0.5, alpha=0.8)
     ax.set_yticks(y_pos)
     ax.set_xticks(x_pos)
+    ax.set_xticklabels([0,5,10,15,20,25], fontsize=25)
     ax.set_yticklabels(stat_names, fontsize=30)
     ax.set_xlim([0,25])
     ax.invert_yaxis()  # labels read top-to-bottom
-    ax.set_xlabel('\n\nWeak  -------------------------------- Super ------------------------------ Godly\n(but still better than you!)                                                                  ')
+    #ax.set_xlabel('\n\nWeak  -------------------------------- Super ------------------------------ Godly\n(but still better than you!)                                                                  ')
     #ax.set_title('Your Hero Stats', color=stats_bar_text_color)
 
     ax.set_facecolor('none')
@@ -153,6 +157,8 @@ def stat_display(stuff, align):
     ax.spines['top'].set_color('none')
     ax.spines['bottom'].set_color('none')
     ax.spines['right'].set_color('none')
+
+    ax.grid()
 
     return st.pyplot(fig)
    # Every form must have a submit button.
@@ -213,6 +219,7 @@ if st.button('Find Me a Villain'):
 
 ### function for horizontal bar chart of stats
 initial_search=''
+comic_title_list=[]
 
 if matched_hero != '':
     initial_search = str(matched_hero) + ' does some sweet hero stuff!'
@@ -244,15 +251,17 @@ else:
     for score, idx in zip(top_results[0], top_results[1]):
         # st.write("(Score: {:.4f})".format(score))
         # st.write(corpus[idx], "(Score: {:.4f})".format(score))
-        st.markdown("""---""")
         comic=df['comic_name'][df['all_review']==corpus[idx]]
         row_dict = df.loc[df['all_review']== corpus[idx]]
         # row2_dict = sum_df.loc[sum_df['all_review']== corpus[idx]]
         # row3_dict = df1.loc[df1['comic_name']==row_dict['comic_name'].values[0]]
-        st.write("Comic Title: " , row_dict['comic_name'].values[0])
+        st.write(row_dict['comic_name'].values[0])
+        comic_title_list.append(row_dict['comic_name'].values[0])
         #st.write("Hotel Review Summary: " , row2_dict['summary'].values[0])
         #st.write("Tripadvisor Link: [here](%s)" %row3_dict['url'].values[0], "\n")
-        st.markdown("""---""")
+
+st.markdown("""---""")
+st.write(comic_title_list)
 
 ### IDEA ###
 # (first character that comes up is a profile of superman, but x'd out)
