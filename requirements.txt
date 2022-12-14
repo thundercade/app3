@@ -7,3 +7,4 @@ plotly
 tqdm
 spacy
 sentence-transformers
+beautifulsoup4
