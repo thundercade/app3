@@ -30,6 +30,7 @@ from sentence_transformers import SentenceTransformer, util
 
 from bs4 import BeautifulSoup
 import requests
+import lxml
 
 @st.cache(allow_output_mutation=True)
 def load_file(filename):
