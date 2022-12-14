@@ -41,22 +41,13 @@ stats = load_file("stats_df.pkl")
 df = load_file("comic_df.pkl")
 corpus_embeddings = load_file("comic_corpus_embeddings.pkl")
 corpus = load_file("comic_corpus.pkl")
+main_df = load_file("main_df.pkl")
+idf = load_file("icomic_df.pkl")
+icorpus_embeddings = load_file("icomic_corpus_embeddings.pkl")
+icorpus = load_file("icomic_corpus.pkl")
 
 marvel_banner = Image.open('mb.jpg')
 st.image(marvel_banner, use_column_width=True)
-
-
-# with open("stats_df.pkl" , "rb") as file_1:
-#     stats = pkl.load(file_1)
-#
-# with open("comic_df.pkl" , "rb") as file_2:
-#     df = pkl.load(file_2)
-#
-# with open("comic_corpus_embeddings.pkl" , "rb") as file_3:
-#     corpus_embeddings = pkl.load(file_3)
-#
-# with open("comic_corpus.pkl" , "rb") as file_4:
-#     corpus = pkl.load(file_4)
 
 # embedder = SentenceTransformer('all-MiniLM-L6-v2')
 @st.cache(allow_output_mutation=True)
@@ -192,10 +183,19 @@ s_com = scl*st.sidebar.slider('Combat', min_value=1, max_value=scale)
 hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
 stats_total = sum(hero_stats)/scl
 # st.write("Your current stat total is: ", int(stats_total),"out of 150")
+html_str = f"""
+<style>
+p.a {{
+  font: bold 42px Tahoma;
+}}
+</style>
+<p class="a">{int(stats_total)}</p>
+"""
+
 st.markdown("""Select your stats on the left!""")
-st.markdown("""Your current stat total is:""")
-st.markdown(int(stats_total) , unsafe_allow_html=True)
-st.markdown(""" out of a possible 150""")
+st.markdown('<p style="font-family:Tahoma; font-size: 20px;">Your current stat total is:</p>', unsafe_allow_html=True)
+st.markdown(html_str , unsafe_allow_html=True)
+st.markdown('<p style="font-family:Tahoma; font-size: 20px;">out of a possible 150</p>', unsafe_allow_html=True)
 
 if stats_total < 50:
     st.markdown("You may want to kick it up a notch, yeah?")
@@ -250,12 +250,6 @@ with st.form("Villain Form"):
            stat_display(match_stats, 'v')
 
 
-
-
-
-
-
-
 st.markdown("""---""")
 
 # match_stats = match_df.iloc[0,2:8].values.tolist()
@@ -265,6 +259,7 @@ st.markdown("""---""")
 ### function for horizontal bar chart of stats
 initial_search=''
 comic_title_list=[]
+issue_title_list=[]
 
 if matched_hero != '':
     initial_search = str(matched_hero) + ' does some sweet hero stuff!'
@@ -307,10 +302,38 @@ else:
         #st.write("Hotel Review Summary: " , row2_dict['summary'].values[0])
         #st.write("Tripadvisor Link: [here](%s)" %row3_dict['url'].values[0], "\n")
 
+    st.markdown("""---""")
+    st.subheader("""**Here are Some Specific Issue Recommedations**""")
+
+
+    itop_k = min(100, len(icorpus))
+    cos_scores = util.pytorch_cos_sim(query_embedding, icorpus_embeddings)[0]
+    top_results = torch.topk(cos_scores, k=itop_k)
+
+    for score, idx in zip(top_results[0], top_results[1]):
+        issue=idf['issue_title'][idf['all_review']==icorpus[idx]]
+        row_dict = idf.loc[idf['all_review']== icorpus[idx]]
+        #st.write(row_dict['issue_title'].values[0])
+        issue_title_list.append(row_dict['issue_title'].values[0])
+
+    issue_df = main_df[main_df['issue_title'].isin(issue_title_list)]
+    issue_df = issue_df[issue_df['comic_name'].isin(comic_title_list)]
+    issue_df = issue_df.set_index('comic_name')[['issue_title']]
+    # issue_df = pd.DataFrame({'issue_title': issue_title_list})
+
+
+
+    # issue_df['Title']=np.where(issue_df['issue_title'] == main_df['issue_title']
+    #                  , main_df['comic_name'])
+    st.write(issue_df)
+
+    # st.write(main_df)
+    #
+    # main_df.dtypes
+    #
+    # issue_df.dtypes
+
 st.markdown("""---""")
-
-
-
 
 
 
