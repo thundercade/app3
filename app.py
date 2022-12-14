@@ -28,6 +28,9 @@ import os
 import sentence_transformers
 from sentence_transformers import SentenceTransformer, util
 
+from bs4 import BeautifulSoup
+import requests
+
 @st.cache(allow_output_mutation=True)
 def load_file(filename):
     with open(filename, "rb") as file_:
@@ -61,14 +64,15 @@ def load_model():
 embedder = load_model()
 
 ### page title ###
-st.title('Welcome to The Marvel Hero Matcher')
+st.title('Marvel Hero Matcher')
 
 st.markdown("""
 This app will let you define a hero by picking hero stats, then match you with
-the closest Marvel hero we can find. Next, it will search Marvel comics for
+the closest Marvel hero we can find (or villain, if you so choose). Next, it will search Marvel comics for
 the best comic titles to read about your hero. Then, change that search as you
 want!
 """)
+st.markdown("""---""")
 
 ### sidebar menu - year selection ###
 # st.sidebar.header('User Input Features')
@@ -163,6 +167,21 @@ def stat_display(stuff, align):
     return st.pyplot(fig)
    # Every form must have a submit button.
 
+def char_img(q):
+    #word = 'agent bob marvel fandom comic portrait'
+    word = q
+    url = 'https://www.google.com/search?q={0}&tbm=isch'.format(word)
+    content = requests.get(url).content
+    soup = BeautifulSoup(content,'lxml')
+    images = soup.findAll('img', limit=2)
+    image_list=[]
+    for image in images:
+        image_list.append(image.get('src'))
+    # image_url = image_list[1]
+    # st.write(image_url)
+    display_image = Image.open(requests.get(image_list[1], stream=True).raw)
+    return st.image(display_image, width=150)
+
 s_int = scl*st.sidebar.slider('Intelligence', min_value=1, max_value=scale)
 s_str = scl*st.sidebar.slider('Strength', min_value=1, max_value=scale)
 s_spd = scl*st.sidebar.slider('Speed', min_value=1, max_value=scale)
@@ -172,6 +191,7 @@ s_com = scl*st.sidebar.slider('Combat', min_value=1, max_value=scale)
 hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
 stats_total = sum(hero_stats)/scl
 # st.write("Your current stat total is: ", int(stats_total),"out of 150")
+st.markdown("""Select your stats on the left!""")
 st.markdown("""Your current stat total is:""")
 st.markdown(int(stats_total) , unsafe_allow_html=True)
 st.markdown(""" out of a possible 150""")
@@ -185,33 +205,57 @@ if stats_total >= 75 and stats_total < 125:
 if stats_total >= 125:
     st.markdown("Fine, but we're going to have you fight Thanos when he has all that Infinity Stuff")
 
-if st.button('Find Me a Hero!'):
-  hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
-  ###### match hero_stats to character from dataframe
-  match_df=h_match_maker(hero_stats)
-  match_stats = match_df.iloc[0,2:8].values.tolist()
-  matched_hero = match_df.iloc[0,0]
-  match_stats = list(np.array(match_stats)/scl)
-  st.write(matched_hero)
-  st.write(match_df)
-  ####### Display stuff about the matched hero
-  stat_display(match_stats, 'h')
+st.markdown("""---""")
 
-if st.button('Find Me a Villain'):
-  hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
-  ###### match hero_stats to character from dataframe
-  match_df=v_match_maker(hero_stats)
-  match_stats = match_df.iloc[0,2:8].values.tolist()
-  matched_villain = match_df.iloc[0,0]
-  match_stats = list(np.array(match_stats)/scl)
-  st.write(matched_villain)
-  st.write(match_df)
-  ####### Display stuff about the matched hero
-  stat_display(match_stats, 'v')
-###### match hero_stats to character from dataframe
 
-####### Display stuff about the matched hero
 
+with st.form("Hero Form"):
+   submitted = st.form_submit_button("Find me a Hero!")
+   if submitted:
+       hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
+       ###### match hero_stats to character from dataframe
+       match_df=h_match_maker(hero_stats)
+       match_stats = match_df.iloc[0,2:8].values.tolist()
+       matched_hero = match_df.iloc[0,0]
+       match_stats = list(np.array(match_stats)/scl)
+       st.write(matched_hero)
+       #st.write(match_df)
+       char_query = str(matched_hero) + ' marvel fandom comic'
+       ####### Display stuff about the matched hero
+       col1, col2, = st.columns([1,2])
+       with col1:
+           char_img(char_query)
+       with col2:
+           stat_display(match_stats, 'h')
+
+with st.form("Villain Form"):
+   submitted = st.form_submit_button("Find me a Villain!")
+   if submitted:
+       hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
+       ###### match hero_stats to character from dataframe
+       match_df=v_match_maker(hero_stats)
+       match_stats = match_df.iloc[0,2:8].values.tolist()
+       matched_villain = match_df.iloc[0,0]
+       match_stats = list(np.array(match_stats)/scl)
+       st.write(matched_villain)
+       #st.write(match_df)
+       ####### Display stuff about the matched hero
+       char_query = str(matched_villain) + ' marvel fandom comic'
+       ####### Display stuff about the matched villain
+       col1, col2, = st.columns([1,2])
+       with col1:
+           char_img(char_query)
+       with col2:
+           stat_display(match_stats, 'v')
+
+
+
+
+
+
+
+
+st.markdown("""---""")
 
 # match_stats = match_df.iloc[0,2:8].values.tolist()
 # #if st.button('Click Here to Keep This Party Going!'):
@@ -227,13 +271,15 @@ if matched_hero != '':
 if matched_villain != '':
     initial_search = str(matched_villain) + ' is turning the evil up to 11!'
 
+st.subheader("""**Comic Search:**""")
+
 query = ''
 query = st.text_input("", value=initial_search)
 # queries = list([queries])
 
 # Find the closest 5 sentences of the corpus for query sentence based on cosine similarity
 if query == '':
-    st.markdown("""What other action are you looking for?
+    st.markdown("""What kind of action are you looking for?
     Type something like Spiderman fights The Green Goblin and loses! or
     Wolverine teams up with Black Widow!""")
 else:
@@ -245,7 +291,7 @@ else:
     top_results = torch.topk(cos_scores, k=top_k)
 
     st.markdown("""---""")
-    st.write("You searched for:   ", query, "\n")
+    #st.write("You searched for:   ", query, "\n")
     st.subheader("""**You can read about it in these exciting titles:**""")
 
     for score, idx in zip(top_results[0], top_results[1]):
@@ -261,74 +307,47 @@ else:
         #st.write("Tripadvisor Link: [here](%s)" %row3_dict['url'].values[0], "\n")
 
 st.markdown("""---""")
-st.write(comic_title_list)
-
-### IDEA ###
-# (first character that comes up is a profile of superman, but x'd out)
-# Deadpool: "Looks like Thanos WAS rigth, so half of the unverse was wiped out right before
-# you picked your hero, and yes, that even includes people from other universes...so YOU CAN'T
-# be Superman! But we have a great alternate match for you!!
-#
-# (if they picked that Deadpool was right, it does the same, but based him him being 'right'
-# about his question he forgot to display - and that is, I can beat up Superman! ...so YOU CAN'T
-# be Superman! But we have a great alternate match for you!!
 
 
-# ### Web scraping of NBA player Stats
-# @st.cache
-# def load_data(year):
-#     url = "https://www.basketball-reference.com/leagues/NBA_" + str(year) + "_per_game.html"
-#     html = pd.read_html(url, header = 0)
-#     df = html[0]
-#     raw = df.drop(df[df.Age == 'Age'].index) # deletes repeating header rows
-#     raw = raw.fillna(0)
-#     playerstats = raw.drop(['Rk'], axis=1)
-#
-#     return (playerstats)
-#
-# playerstats = load_data(selected_year)
-#
-# ### sidebar menu - team selection ###
-# sorted_unique_team = sorted(playerstats.Tm.unique())
-# selected_team = st.sidebar.multiselect('Team', sorted_unique_team, sorted_unique_team)
-#
-# ### sidebar menu - team selection ###
-# unique_pos = ['C', 'PF', 'SF', 'PG', 'SG']
-# selected_pos = st.sidebar.multiselect('Team', unique_pos, unique_pos)
-#
-# ### filtering data
-# df_selected_team = playerstats[(playerstats.Tm.isin(selected_team)) &
-#                                 (playerstats.Pos.isin(selected_pos))]
-#
-#
-# st.header('Display Player Stats of Selected Team(s)')
-# st.write('Data Dimension: ' + str(df_selected_team.shape[0]) + ' rows and ' +
-#             str(df_selected_team.shape[1]) + ' columns')
-# st.dataframe(df_selected_team)
-#
-# #download NBA player stats dataframe
-# #https://dicsuss.streamlit.io/t/how-to-download-file-in-streamlit/1806
-# def filedownload(df):
-#     csv = df.to_csv(index=False)
-#     b64 = base64.b64encode(csv.encode()).decode() # strings <-> bytes conversion
-#     href = f'<a href="data:file/csv;base64,{b64}" download="playerstats.csv">Download CSV File</a>'
-#     return href
-#
-# st.markdown(filedownload(df_selected_team), unsafe_allow_html=True)
-#
-#
-# if st.button('Intercorrelation Heatmap'):
-#     st.header('Intercorrelation Matrix Heatmap')
-#     df_selected_team.to_csv('output.csv', index=False) #need this for the heatmap to work correctly
-#     df = pd.read_csv('output.csv') #need this for the heatmap to work correctly
-#
-#     corr = df.corr()
-#     mask = np.zeros_like(corr)
-#     mask[np.triu_indices_from(mask)] = True
-#     with sns.axes_style("white"):
-#         f, ax = plt.subplots(figsize=(7,5))
-#         ax = sns.heatmap(corr, mask=mask, vmax=1, square=True)
-#     st.pyplot(f)
 
 
-#bottom
+
+
+
+#### previous hero display code
+
+#
+# if st.button('Find Me a Hero!'):
+#   hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
+#   ###### match hero_stats to character from dataframe
+#   match_df=h_match_maker(hero_stats)
+#   match_stats = match_df.iloc[0,2:8].values.tolist()
+#   matched_hero = match_df.iloc[0,0]
+#   match_stats = list(np.array(match_stats)/scl)
+#   st.write(matched_hero)
+#   #st.write(match_df)
+#   char_query = str(matched_hero) + ' marvel fandom comic'
+#   ####### Display stuff about the matched hero
+#   col1, col2, = st.columns([1,2])
+#   with col1:
+#       char_img(char_query)
+#   with col2:
+#       stat_display(match_stats, 'h')
+#
+# if st.button('Find Me a Villain'):
+#   hero_stats = [s_int, s_str, s_spd, s_dur, s_pow, s_com]
+#   ###### match hero_stats to character from dataframe
+#   match_df=v_match_maker(hero_stats)
+#   match_stats = match_df.iloc[0,2:8].values.tolist()
+#   matched_villain = match_df.iloc[0,0]
+#   match_stats = list(np.array(match_stats)/scl)
+#   st.write(matched_villain)
+#   #st.write(match_df)
+#   ####### Display stuff about the matched hero
+#   char_query = str(matched_villain) + ' marvel fandom comic'
+#   ####### Display stuff about the matched villain
+#   col1, col2, = st.columns([1,2])
+#   with col1:
+#       char_img(char_query)
+#   with col2:
+#       stat_display(match_stats, 'v')
